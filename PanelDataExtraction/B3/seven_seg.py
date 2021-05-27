@@ -8,6 +8,8 @@ from imutils import contours
 import imutils
 
 def seven_seg_disp (image):
+    global output
+    global digits
     # image is coloured image
 
     # define the dictionary of digit segments so we can identify
@@ -32,7 +34,6 @@ def seven_seg_disp (image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     edged = cv2.Canny(blurred, 50, 200, 255)
-
 
     # find contours in the edge map, then sort them by their
     # size in descending order
@@ -145,3 +146,13 @@ def seven_seg_disp (image):
         number += i * (10**(power))
 
     return number
+
+if __name__ == "__main__":
+    print("test")
+    image = cv2.imread(r"C:\Users\Inspiron\Downloads\PanelDataExtraction\B3\example.jpg")
+    number=seven_seg_disp(image)
+    # display the digits
+    print(u"{}{}.{} \u00b0C".format(*digits))
+    cv2.imshow("Input", image)
+    cv2.imshow("Output", output)
+    cv2.waitKey(0)
