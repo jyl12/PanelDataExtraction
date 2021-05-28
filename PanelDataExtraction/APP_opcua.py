@@ -28,9 +28,29 @@ def opcuaserver_settings(objectname = "Parameters" , variablename = "Variable"):
     server.start()
     print("Server is started at {}".format(server.url))
 
+class Communication:  #try to wrap
+    def __init__(self, port=None):
+        self.server = ExtendedServer(port)
+    
+    def opcuaserver_pub(self,objectname = "Parameters" , variablename = "Variable"):
+        global Temp
+        node = self.server.get_objects_node()
+        print("node is:", node)
+        param = node.add_object(self.server.addspace, objectname)
+        print("param is:",param)
+        Temp = param.add_variable (self.server.addspace, variablename, 0)
+        self.server.start()
+        print("Server is started at {}".format(self.server.url))
+
 if __name__ == "__main__":
-    server = ExtendedServer(4840)
-    opcuaserver_settings("test_para","test_var")
+    #***** try wrapper***
+    opc = Communication(port = 4840)
+    opc.opcuaserver_pub("test_para","test_var")
+
+    #***** without wrapper***
+    # server = ExtendedServer(4840)
+    # opcuaserver_settings("test_para","test_var")
+
     # node = server.get_objects_node()
     # print("node is:", node)
     # param = node.add_object(server.addspace, "Parameters")
@@ -38,6 +58,7 @@ if __name__ == "__main__":
     # Temp = param.add_variable (server.addspace, "Temperature", 0)
     # server.start()
     # print("Server is started at {}".format(server.url))
+
     while True:  
         Temperature = randint(10, 50)
         print("Temperature:",Temperature)
