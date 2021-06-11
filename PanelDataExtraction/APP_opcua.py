@@ -11,12 +11,6 @@ class ExtendedServer(Server):
         name = "opcua_simulation_server"
         self.addspace = self.register_namespace(name)
         print("namespace is:", self.addspace)
-        
-    def testfunc(self , objectname = "Parters" , variablename = "Varie" ): #incomplete
-        print("test")
-        node = server.get_objects_node()
-        print("node is:", node)
-        print("test2")
 
 def opcuaserver_settings(objectname = "Parameters" , variablename = "Variable"):
     global Temp
