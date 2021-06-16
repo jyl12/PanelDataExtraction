@@ -22,9 +22,12 @@ def seven_seg_disp (image):
         (0, 1, 1, 1, 0, 1, 0): 4,
         (1, 1, 0, 1, 0, 1, 1): 5,
         (1, 1, 0, 1, 1, 1, 1): 6,
+        # (0, 1, 0, 1, 1, 1, 1): 6, #added
         (1, 0, 1, 0, 0, 1, 0): 7,
+        # (1, 1, 1, 0, 0, 1, 0): 7,#added
         (1, 1, 1, 1, 1, 1, 1): 8,
-        (1, 1, 1, 1, 0, 1, 1): 9
+        (1, 1, 1, 1, 0, 1, 1): 9,
+        # (1, 1, 1, 1, 0, 1, 0): 9 #added
     }
 
 
@@ -55,100 +58,98 @@ def seven_seg_disp (image):
             displayCnt = approx
             break
 
-    # extract the thermostat display, apply a perspective transform
-    # to it
-    warped = four_point_transform(gray, displayCnt.reshape(4, 2))
-    output = four_point_transform(image, displayCnt.reshape(4, 2))
+    if displayCnt is not None:
+        # extract the thermostat display, apply a perspective transform
+        # to it
+        warped = four_point_transform(gray, displayCnt.reshape(4, 2))
+        output = four_point_transform(image, displayCnt.reshape(4, 2))
+        cv2.imshow('Birdeye', output)
 
-    # threshold the warped image, then apply a series of morphological
-    # operations to cleanup the thresholded image
-    thresh = cv2.threshold(warped, 0, 255,
-        cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (1, 5))
-    thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+        # threshold the warped image, then apply a series of morphological
+        # operations to cleanup the thresholded image
+        thresh = cv2.threshold(warped, 0, 255,
+            cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (1, 5))
+        thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
 
-    # find contours in the thresholded image, then initialize the
-    # digit contours lists
-    cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
-        cv2.CHAIN_APPROX_SIMPLE)
-    cnts = imutils.grab_contours(cnts)
-    digitCnts = []
-    
-    # loop over the digit area candidates
-    for c in cnts:
-        # compute the bounding box of the contour
-        (x, y, w, h) = cv2.boundingRect(c)
-    
-        # if the contour is sufficiently large, it must be a digit
-        if w >= 15 and (h >= 30 and h <= 40):
-            digitCnts.append(c)
-
-
-    # sort the contours from left-to-right, then initialize the
-    # actual digits themselves
-    digitCnts = contours.sort_contours(digitCnts,
-        method="left-to-right")[0]
-    digits = []
-
-    # dictionary of key = y, value = digit --> {y:digit}
-    digit_and_location = {}
-
-    # loop over each of the digits
-    for c in digitCnts:
-        # extract the digit ROI
-        (x, y, w, h) = cv2.boundingRect(c)
-        roi = thresh[y:y + h, x:x + w]
-    
-        # compute the width and height of each of the 7 segments
-        # we are going to examine
-        (roiH, roiW) = roi.shape
-        (dW, dH) = (int(roiW * 0.25), int(roiH * 0.15))
-        dHC = int(roiH * 0.05)
-    
-        # define the set of 7 segments
-        segments = [
-            ((0, 0), (w, dH)),	# top
-            ((0, 0), (dW, h // 2)),	# top-left
-            ((w - dW, 0), (w, h // 2)),	# top-right
-            ((0, (h // 2) - dHC) , (w, (h // 2) + dHC)), # center
-            ((0, h // 2), (dW, h)),	# bottom-left
-            ((w - dW, h // 2), (w, h)),	# bottom-right
-            ((0, h - dH), (w, h))	# bottom
-        ]
-        on = [0] * len(segments)
+        # find contours in the thresholded image, then initialize the
+        # digit contours lists
+        cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_SIMPLE)
+        cnts = imutils.grab_contours(cnts)
+        digitCnts = []
         
-        # loop over the segments
-        for (i, ((xA, yA), (xB, yB))) in enumerate(segments):
-            # extract the segment ROI, count the total number of
-            # thresholded pixels in the segment, and then compute
-            # the area of the segment
-            segROI = roi[yA:yB, xA:xB]
-            total = cv2.countNonZero(segROI)
-            area = (xB - xA) * (yB - yA)
-    
-            # if the total number of non-zero pixels is greater than
-            # 50% of the area, mark the segment as "on"
-            if total / float(area) > 0.5:
-                on[i]= 1
+        # loop over the digit area candidates
+        for c in cnts:
+            # compute the bounding box of the contour
+            (x, y, w, h) = cv2.boundingRect(c)
+        
+            # if the contour is sufficiently large, it must be a digit
+            if w >= 15 and (h >= 30 and h <= 40):
+                digitCnts.append(c)
+      
+        # sort the contours from left-to-right, then initialize the
+        # actual digits themselves
+        digitCnts = contours.sort_contours(digitCnts,
+            method="left-to-right")[0]
+        digits = []
 
-    
-        # lookup the digit and draw it on the image
-        digit = DIGITS_LOOKUP[tuple(on)]
-        digits.append(digit)    
-        cv2.rectangle(output, (x, y), (x + w, y + h), (0, 255, 0), 1)
-        cv2.putText(output, str(digit), (x - 10, y - 10),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 0), 2)
-        #digit_and_location[y] = digit
+        # dictionary of key = y, value = digit --> {y:digit}
+        digit_and_location = {}
 
-    number = 0
-    for i in digits:
-        power = len(digits) - digits.index(i) -1
-        number += i * (10**(power))
+        # loop over each of the digits
+        for c in digitCnts:
+            # extract the digit ROI
+            (x, y, w, h) = cv2.boundingRect(c)
+            roi = thresh[y:y + h, x:x + w]
+        
+            # compute the width and height of each of the 7 segments
+            # we are going to examine
+            (roiH, roiW) = roi.shape
+            (dW, dH) = (int(roiW * 0.25), int(roiH * 0.15))
+            dHC = int(roiH * 0.05)
+        
+            # define the set of 7 segments
+            segments = [
+                ((0, 0), (w, dH)),	# top
+                ((0, 0), (dW, h // 2)),	# top-left
+                ((w - dW, 0), (w, h // 2)),	# top-right
+                ((0, (h // 2) - dHC) , (w, (h // 2) + dHC)), # center
+                ((0, h // 2), (dW, h)),	# bottom-left
+                ((w - dW, h // 2), (w, h)),	# bottom-right
+                ((0, h - dH), (w, h))	# bottom
+            ]
+            on = [0] * len(segments)
+            
+            # loop over the segments
+            for (i, ((xA, yA), (xB, yB))) in enumerate(segments):
+                # extract the segment ROI, count the total number of
+                # thresholded pixels in the segment, and then compute
+                # the area of the segment
+                segROI = roi[yA:yB, xA:xB]
+                total = cv2.countNonZero(segROI)
+                area = (xB - xA) * (yB - yA)
+        
+                # if the total number of non-zero pixels is greater than
+                # 50% of the area, mark the segment as "on"
+                if total / float(area) > 0.5:
+                    on[i]= 1
 
+            # lookup the digit and draw it on the image
+            digit = DIGITS_LOOKUP[tuple(on)]
+            digits.append(digit)    
+            cv2.rectangle(output, (x, y), (x + w, y + h), (0, 255, 0), 1)
+            cv2.putText(output, str(digit), (x - 10, y - 10),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 0), 2)
+            #digit_and_location[y] = digit
+          
+        number = 0
+        for i in digits:
+            power = len(digits) - digits.index(i) -1
+            number += i * (10**(power))
     return number
 
 if __name__ == "__main__":
-    print("test")
     image = cv2.imread(r"C:\Users\Inspiron\Downloads\PanelDataExtraction\B3\example.jpg")
     number=seven_seg_disp(image)
     # display the digits
